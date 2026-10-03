@@ -96,6 +96,8 @@ export async function getData(lat, lon) {
 }
 
 export function lastPlace() { return load(KEY + 'last'); }
+/** Saved data for an exact place, or null (no network). */
+export const savedData = (lat, lon) => load(KEY + k(lat, lon));
 
 const kmBetween = (a, b, c, d) => {
   const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2;

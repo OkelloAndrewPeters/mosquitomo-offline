@@ -76,7 +76,7 @@ input[type="search"] { width: 100%; min-height: 48px; border-radius: 999px; bord
 .reports .ghost { margin-top: 6px; min-height: 36px; padding: 4px 10px; font-size: 14px; }
 .prose ul { padding-left: 20px; } .prose li + li { margin-top: 4px; }
 
-.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--paper); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--paper); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
 .tabs a { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 64px; text-decoration: none; color: var(--ink-2); font-size: 12px; font-weight: 700; gap: 2px; text-align: center; }
 .tabs svg { width: 24px; height: 24px; fill: currentColor; }
 .tabs a[aria-current="page"] { color: var(--dusk); }
@@ -93,3 +93,15 @@ input[type="search"] { width: 100%; min-height: 48px; border-radius: 999px; bord
 .actions .tiny { margin-top: 8px; } .actions a { font-weight: 700; color: var(--dusk); }
 .del { background: none; border: 0; color: var(--ink-2); font-size: 18px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; vertical-align: middle; }
 .del:hover { background: var(--line); }
+
+.map { height: calc(100vh - 260px); min-height: 340px; border-radius: 16px; overflow: hidden; background: #E3E8E1; }
+.map svg { width: 100%; height: 100%; } .map .town { cursor: pointer; }
+.chip { font: 800 12px/22px system-ui, sans-serif; width: 30px; height: 24px; border-radius: 8px; text-align: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.legend-row { display: flex; gap: 14px; font-size: 14px; padding: 8px 4px 0; flex-wrap: wrap; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.fac { list-style: none; padding: 0; margin: 10px 0 0; }
+.fac li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.fac-a { display: flex; gap: 6px; flex-shrink: 0; } .fac-a .ghost { min-height: 36px; padding: 4px 10px; font-size: 14px; text-decoration: none; }
+.note-inline { color: #6B4E00; background: #FBEFC9; border-radius: 10px; padding: 6px 10px; font-size: 14px; }
+.fever h2 { margin-bottom: 4px; } .fever .ghost { margin-top: 10px; }
+.tabs a { font-size: 11px; }

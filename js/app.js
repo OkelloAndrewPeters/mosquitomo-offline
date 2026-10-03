@@ -1,6 +1,7 @@
 import { reading } from './risk.js';
-import { getData, placeName, search, locate, todayUG, lastPlace, nearestSaved, savedName, syncPack, packInfo } from './weather.js';
-import { searchLocal } from './places-ug.js';
+import { getData, placeName, search, locate, todayUG, lastPlace, nearestSaved, savedName, syncPack, packInfo, savedData } from './weather.js';
+import { searchLocal, PLACES } from './places-ug.js';
+import { nearbyFacilities } from './care.js';
 import { t, label, getLang, setLang, LANGS, SPEECH_LANG } from './i18n.js';
 import { addReport, allReports, deleteReport, shrink } from './store.js';
 
@@ -33,7 +34,7 @@ document.addEventListener('click', (e) => {
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => route();
 
 // ---------- router ----------
-const routes = { risk: viewRisk, check: viewCheck, reports: viewReports, about: viewAbout };
+const routes = { risk: viewRisk, map: viewMap, check: viewCheck, reports: viewReports, about: viewAbout };
 function route() {
   const name = (location.hash.slice(1) || 'risk').split('?')[0];
   const r = routes[name] ? name : 'risk';
@@ -158,7 +159,76 @@ function render() {
     <section class="card">
       <h2>${t('why')}</h2>
       <ul class="why">${r.drivers.map((x) => `<li class="${x.up ? 'up' : 'down'}"><span>${x.up ? '↑' : '↓'}</span>${esc(t(x.key, x.vars))}</li>`).join('')}</ul>
+    </section>
+    <section class="card fever">
+      <h2>${t('fever_title')}</h2>
+      <p class="muted">${t('fever_body')}</p>
+      <button class="ghost" id="facBtn">${t('find_facilities')}</button>
+      <div id="fac"></div>
     </section>`;
+  $('#facBtn').onclick = () => showFacilities(current.lat, current.lon);
+}
+
+async function showFacilities(lat, lon) {
+  const el = $('#fac'); el.innerHTML = `<p class="muted">${t('loading')}</p>`;
+  const res = await nearbyFacilities(lat, lon);
+  if (!res) { el.innerHTML = `<p class="muted">${t('fac_offline_none')}</p>`; return; }
+  el.innerHTML = (res.offline ? `<p class="note-inline">${t('fac_offline', { date: new Date(res.at).toLocaleDateString() })}</p>` : '')
+    + (res.list.length ? `<ul class="fac">${res.list.map((f) => `<li><div><b>${esc(f.name)}</b><br><span class="muted small">${esc(f.kind)} · ${f.km.toFixed(1)} km</span></div>
+      <div class="fac-a">${f.phone ? `<a class="ghost" href="tel:${esc(f.phone.replace(/\s/g, ''))}">${t('call')}</a>` : ''}<a class="ghost" href="https://www.google.com/maps/dir/?api=1&destination=${f.lat},${f.lon}" target="_blank" rel="noopener">${t('directions')}</a></div></li>`).join('')}</ul>
+      <p class="tiny">${t('fac_source')}</p>` : `<p class="muted">${t('fac_none')}</p>`);
+}
+
+// ---------- MAP: risk across Uganda (street map online; offline: saved towns drawn without a background) ----------
+function townReadings() {
+  const today = todayUG(), out = [];
+  for (const p of PLACES) {
+    const d = savedData(p.lat, p.lon); if (!d) continue;
+    const r = reading(d.series, today, d.tpi); if (r) out.push({ ...p, score: r.score, level: r.level });
+  }
+  return out;
+}
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'vendor/leaflet/leaflet.css'; document.head.appendChild(css);
+    const s = document.createElement('script'); s.src = 'vendor/leaflet/leaflet.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+let mapObj = null;
+async function viewMap() {
+  const towns = townReadings();
+  view.innerHTML = `
+    <h2 class="pad">${t('map_title')}</h2>
+    <p class="muted small pad">${towns.length ? t('map_help', { n: towns.length }) : t('map_empty')}</p>
+    <div id="map" class="map"></div>
+    <div class="legend-row"><span><i class="dot" style="background:${COLORS.standard}"></i>${t('lvl_standard')}</span><span><i class="dot" style="background:${COLORS.elevated}"></i>${t('lvl_elevated')}</span><span><i class="dot" style="background:${COLORS.high}"></i>${t('lvl_high')}</span></div>`;
+  if (!towns.length) return;
+  const open = (p) => { location.hash = '#risk'; setTimeout(() => show(p.lat, p.lon, { name: p.name, area: p.area }), 50); };
+  if (navigator.onLine) {
+    try {
+      await loadLeaflet();
+      if (mapObj) { mapObj.remove(); mapObj = null; }
+      mapObj = L.map('map', { zoomControl: true }).setView([1.37, 32.29], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenStreetMap' }).addTo(mapObj);
+      towns.forEach((p) => {
+        const m = L.circleMarker([p.lat, p.lon], { radius: 8, color: '#fff', weight: 2, fillColor: COLORS[p.level], fillOpacity: 0.95 }).addTo(mapObj);
+        m.bindTooltip(`${esc(p.name)}: ${p.score}`, { direction: 'top', offset: [0, -6] });
+        m.on('click', () => open(p));
+      });
+      return;
+    } catch { /* fall through to offline drawing */ }
+  }
+  // Offline: plot towns by latitude/longitude on a plain panel (Uganda spans ~29.5–35°E, -1.5–4.3°N)
+  const W = 340, H = 360, x = (lo) => ((lo - 29.4) / (35.1 - 29.4)) * (W - 20) + 10, y = (la) => ((4.35 - la) / (4.35 + 1.55)) * (H - 20) + 10;
+  $('#map').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('map_title')}">
+    <rect width="${W}" height="${H}" rx="14" fill="#E3E8E1"/>
+    <text x="${x(32.2)}" y="${y(-0.9)}" font-size="11" fill="#7d8a84" text-anchor="middle">Lake Victoria</text>
+    ${towns.map((p, i) => `<g class="town" data-i="${i}" tabindex="0" role="button" aria-label="${esc(p.name)} ${p.score}">
+      <circle cx="${x(p.lon).toFixed(1)}" cy="${y(p.lat).toFixed(1)}" r="7" fill="${COLORS[p.level]}" stroke="#fff" stroke-width="1.5"/>
+      ${['Kampala', 'Gulu', 'Arua', 'Mbarara', 'Jinja', 'Mbale', 'Lira', 'Moroto', 'Kabale', 'Fort Portal', 'Soroti', 'Hoima', 'Kitgum', 'Masaka'].includes(p.name) ? `<text x="${(x(p.lon) + 9).toFixed(1)}" y="${(y(p.lat) + 4).toFixed(1)}" font-size="10" fill="#18201C">${esc(p.name)} ${p.score}</text>` : ''}
+    </g>`).join('')}</svg><p class="tiny pad">${t('map_offline')}</p>`;
+  $('#map').querySelectorAll('.town').forEach((g) => { const p = towns[+g.dataset.i]; g.onclick = () => open(p); g.onkeydown = (e) => { if (e.key === 'Enter') open(p); }; });
 }
 
 // ---------- CHECK (on-device AI) ----------

@@ -16,6 +16,8 @@ Built 3–4 October 2026 by **Team Moja**: Okello Andrew Peters, a one-person te
 |---|---|---|---|
 | 📷 | **Check water.** Photograph standing water. **SiteNet**, a 1.5M-parameter vision model running *on the phone*, says whether it is a likely breeding site, what kind (puddle, blocked drain, tyres/containers, brick or construction pit, swamp/paddy) and the specific fix. | **Yes**: on-device computer vision | Yes |
 | 📍 | **Risk.** A 0–100 breeding-risk reading for the user's location and an 8-week outlook, computed on the phone from rainfall, temperature, humidity and terrain. **Offline pack:** the first time the app is online, it saves weather for **108 Ugandan district towns and Kampala neighbourhoods**: 3 batched requests, about 300 KB. After that, searching "Gulu" works in airplane mode, with a town-level reading. | Transparent rule-based model (no ML) | Yes, for up to 16 days after the last sync, for any saved place or any of the 108 towns (offline search uses a bundled 5 KB gazetteer) |
+| 🗺️ | **Map.** Risk across Uganda for 108 towns, coloured by level. Online it uses an OpenStreetMap background. **Offline** it draws the saved towns on a plain panel, and tapping a town opens its full reading. | — | Yes (without the background map) |
+| 🏥 | **Fever and care.** "Fever? Test within 24 hours", plus nearby health facilities from OpenStreetMap with call and directions buttons. The last list found is saved, so it is still available offline. No diagnosis. | — | Last saved list |
 | 🗂️ | **Reports.** Confirmed sites are saved on the phone with the photo and GPS, then shared to a health worker by WhatsApp or SMS when there is signal (*store-and-forward*). | — | Yes (saving); sharing needs signal |
 | 🗣️ | **Local language.** The whole interface is in **English, Kiswahili and Luganda**, with spoken advice where the phone has a voice for that language. | — | Yes |
 
@@ -69,6 +71,7 @@ Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ G
 - **Open-Meteo** forecast API: 92 days of past weather and a 16-day forecast, with daily rain, mean temperature and humidity. One call of about 4 KB.
 - **Open-Meteo** elevation API: a 9-point ring around the user to work out whether they are in a valley or on a ridge.
 - **OpenStreetMap Nominatim:** place names and search.
+- **OpenStreetMap Overpass:** nearby hospitals and clinics (saved for offline use). **Leaflet** with OpenStreetMap tiles for the online map background.
 
 **What travels over the network:** after the first visit, only weather refreshes: about 4 KB per place, and about 300 KB for the 108-town offline pack, refreshed at most twice a day. Photos never leave the phone unless the user shares a report.
 
