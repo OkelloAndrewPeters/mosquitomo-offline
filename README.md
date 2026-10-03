@@ -25,7 +25,7 @@ Built 3–4 October 2026 by Okello Andrew Peters (Kampala, Uganda).
 ## Why AI, and why not a simpler tool?
 
 - **An SMS or spreadsheet can carry a report, but it cannot check it.** Not every patch of water breeds *Anopheles*, and supervisors cannot visit every report. SiteNet confirms and classifies each photo on the spot. Reports arrive pre-triaged, so a VHT supervisor checks the uncertain ones instead of all of them.
-- **A cloud vision API would fail exactly where it is needed**, because there is no signal at the puddle. A data bundle is also a real cost. SiteNet runs in about **LATENCY_PLACEHOLDER on the phone, with zero bytes uploaded**.
+- **A cloud vision API would fail exactly where it is needed**, because there is no signal at the puddle. A data bundle is also a real cost. SiteNet runs in about **25–100 ms (single-thread WebAssembly, measured in Chromium; phone timings in the demo) on the phone, with zero bytes uploaded**.
 - **The risk reading is deliberately *not* ML.** It is a published, explainable formula. A black box should not tell families when to worry.
 
 ## Technical depth: infrastructure, models, APIs
@@ -41,10 +41,19 @@ Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ G
 **Models**
 - **Teacher:** OpenCLIP **ViT-B/32** (`laion2b_s34b_b79k`, about 150M parameters). It does zero-shot classification with prompt ensembles per habitat class, and is used to (a) clean noisy web labels and (b) produce soft labels.
 - **Student, which ships to the phone:** **MobileNetV3-Small** (timm, ImageNet-pretrained, about 1.5M parameters). It is fine-tuned by **knowledge distillation**: (1−α)·CE(cleaned labels, class-weighted, label smoothing 0.05) + α·T²·KL(student‖teacher) with T = 2 and α = 0.5, using AdamW and OneCycle for 14 epochs at 224 px with augmentation.
-- **Compression:** ONNX export (opset 17), then **static INT8 quantization** (QDQ, per-channel weights, 300-image calibration). We ship INT8 unless it costs more than 2 accuracy points.
-- **Results (held-out test set):** METRICS_PLACEHOLDER
+- **Compression: what worked and what did not.** Standard **static INT8** (weights and activations, QDQ, 300-image calibration) **collapsed the model to 21.6%**, which is chance level. Dynamic Conv quantization did the same (31% agreement). This is a known weak spot of MobileNetV3's hard-swish and squeeze-excite activations. We therefore ship **weight-only INT8**: per-channel symmetric 8-bit weights with `DequantizeLinear`, and FP32 compute. It is **6.1 MB → 1.65 MB (1.46 MB gzipped)** with **99% top-1 agreement** with the FP32 model on 96 test-derived inputs (mean |Δp| = 0.06). See `training/weight_only_int8.py`.
+- **Results (477 held-out test images, never seen in training):**
 
-**Inference on the phone:** ONNX Runtime Web 1.30 (WebAssembly, SIMD, single thread, because GitHub Pages is not cross-origin isolated and one thread also suits low-end phones). Preprocessing is a 256 px resize, a 224 centre-crop and ImageNet normalisation. I verified that the browser output matches Python ONNX Runtime **to the percentage point** on the same image.
+| Metric | Value |
+|---|---|
+| **Breeding site present vs absent** (the decision the VHT acts on) | **87.4%** |
+| 6-class accuracy · macro-F1 | 69.6% · 68.0% |
+| Per-class F1 | wetland 0.79 · puddle 0.77 · no site 0.70 · drain 0.65 · containers 0.59 · pits 0.58 |
+| Student vs teacher agreement | 69.6% (1.5M-parameter student vs 150M-parameter teacher) |
+
+  Training stopped improving after epoch 10, which means the model was capacity-limited rather than under-trained. Containers and pits get confused most, often with each other. A MobileNetV3-Large student (about 4M parameters) is the next experiment (`training/planB_larger_student_cell.py`).
+
+**Inference on the phone:** ONNX Runtime Web 1.30 (WebAssembly, SIMD, single thread, because GitHub Pages is not cross-origin isolated and one thread also suits low-end phones). Preprocessing is a 256 px resize, a 224 centre-crop and ImageNet normalisation. I verified that the browser output gives the **same top class as Python ONNX Runtime**, with probabilities within about 3 points (the difference comes from canvas vs PIL resizing).
 
 **APIs called (all keyless and free):**
 - **Open-Meteo** forecast API: 92 days of past weather and a 16-day forecast, with daily rain, mean temperature and humidity. One call of about 4 KB.
@@ -58,7 +67,7 @@ Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ G
 | Part | Size |
 |---|---|
 | App code, icons, text in 3 languages | ~0.1 MB |
-| SiteNet model (INT8) | MODEL_SIZE_PLACEHOLDER |
+| SiteNet model (weight-only INT8) | **1.65 MB** (1.46 MB gzipped) |
 | ONNX Runtime Web (WASM) | 14.2 MB raw, **3.7 MB gzipped** |
 
 Everything is cached by the service worker. The model file is small enough to **side-load over Bluetooth or send on WhatsApp**.
@@ -67,8 +76,10 @@ Everything is cached by the service worker. The model file is small enough to **
 
 | Dataset | Use | Licence | Size |
 |---|---|---|---|
-| **Wikimedia Commons** (46 searches across 6 classes; per-image record in `training/commons_manifest.csv`) | Training and test images | Open licences (CC BY, CC BY-SA, PD), recorded per image | COMMONS_COUNT_PLACEHOLDER |
-| Bing image search results (36 queries) | Extra training images | Unknown; used only to train, not redistributed | BING_COUNT_PLACEHOLDER |
+| **Wikimedia Commons** (40 searches across 6 classes, via the MediaWiki API) | Training and test images | Open licences, recorded per image at download: CC BY-SA 4.0/3.0/2.0, CC BY 4.0/2.0, CC0, public domain | about 3,950 images |
+| Bing image search results (36 queries) | Extra training images | Unknown; used only to train, not redistributed | about 410 images |
+
+After de-duplication: **4,362 unique images**. The CLIP teacher **kept 3,179** (it relabelled 1,074 and dropped 1,183). Per class: no site 683 · puddle 635 · drain 236 · containers 419 · pits 537 · wetland 669. Split 70/15/15: 2,225 train, 477 validation, 477 test. *(The per-image licence manifest was lost when the Colab runtime disconnected. The notebook regenerates it on every run.)*
 | OpenCLIP ViT-B/32, LAION-2B | Teacher labels | MIT (code), LAION-2B (CC BY 4.0 metadata) | — |
 | Open-Meteo (ECMWF IFS, DWD ICON and others) | Risk engine inputs | CC BY 4.0 | live |
 | OpenStreetMap | Place names | ODbL | live |
@@ -77,6 +88,8 @@ Everything is cached by the service worker. The model file is small enough to **
 - **Few Ugandan field photos.** Most images are from elsewhere, many from Europe and North America. Muddy brown peri-urban drains, jerrycans and brick pits as they look in Kawempe are under-represented.
 - **No larvae.** The model sees *water that could breed mosquitoes*, not mosquitoes or larvae. It cannot tell *Anopheles* habitat from *Aedes* or *Culex* habitat.
 - **Labels come from a model (CLIP), not entomologists.** Test-set labels share the teacher's biases, so the accuracy above is an *upper bound* on field accuracy.
+- **Drains are the weakest class** (236 images). Many 'drain' photos were dry or had no visible water, so the teacher moved them elsewhere.
+- **Includes some unrelated web photos** (for example, news photos of people) in the 'no site' class, from the web-search part of the data.
 - **No night, close-up macro or very blurry phone shots.**
 - **The risk engine is not yet calibrated against clinic data** (DHIS2). Its weights come from published lag and temperature studies.
 
