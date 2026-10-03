@@ -140,7 +140,13 @@ This builds on **MosquitoMo**, my concept (concept note dated 30 September 2026)
 
 ## My take: what localising AI means to me
 
-LOCAL_TAKE_PLACEHOLDER
+I live in Kampala, where malaria is part of ordinary life, not a statistic. For me, localising AI means three things.
+
+**It runs on what people already have.** A cheap Android phone, an expired data bundle, and a language that isn't English. That is why the model is 1.65 MB, why the app works in airplane mode, and why it speaks Luganda and Kiswahili. AI that only works on fast Wi-Fi in a big office is not built for us.
+
+**It starts from our problems and our evidence.** The 2–8-week lag between rain and malaria comes from studies in Iganga and Mayuge. AirQo, built at Makerere, showed that a Ugandan team can make an invisible risk visible to everyone. I want to do the same for mosquitoes.
+
+**It is honest about what it doesn't know.** My model learned mostly from photos taken outside Uganda, so it can be confidently wrong about a Kawempe drain. That is why it says "not sure, take a closer photo", why a person always decides, and why the next dataset must come from Ugandan health workers and communities themselves. Localising AI is not only translating the buttons. It is making sure our own streets, our own languages and our own people are in the data.
 
 ---
 *Not medical advice. A pilot research prototype.* Weather data © Open-Meteo.com (CC BY 4.0). Places © OpenStreetMap contributors. ONNX Runtime Web © Microsoft (MIT).
