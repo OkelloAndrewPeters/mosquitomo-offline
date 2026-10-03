@@ -7,8 +7,8 @@ Record on a phone screen (Android screen recorder) plus 2–3 short shots of rea
 ## 1. Problem statement (0:00–0:30)
 **On screen:** a photo of a puddle or blocked drain in Kampala (take one tonight or tomorrow morning), then the MosquitoMo logo.
 
-> "Malaria is still Uganda's biggest killer: about 13 million cases a year. Cases rise two to eight weeks after heavy rain, because rain leaves pools where mosquitoes breed. Village health teams are meant to find and clear those pools, but a district has about one entomologist, and many VHTs have no data bundle when they're standing at the puddle.
-> **Because of MosquitoMo Offline, a VHT worker will confirm and clear breeding sites and warn families while risk is rising, weeks before clinics fill up, instead of finding out late. We know this because Ugandan data shows cases peak about four weeks after heavy rain.**"
+> "Malaria is still Uganda's biggest killer: about 13 million cases a year. Cases rise two to eight weeks after heavy rain, because rain leaves pools where mosquitoes breed. Families can't see that risk coming. Village health teams are meant to find and clear those pools, but a district has about one entomologist, and many people have no data bundle when they're standing at the puddle. AirQo made air pollution visible to every Ugandan. I want to do the same for mosquitoes.
+> **Because of MosquitoMo Offline, any Ugandan, and any village health worker, will see when mosquito-breeding risk is rising where they live, and clear breeding sites weeks before malaria cases peak, even with no internet, instead of finding out when clinics fill up. We know this because Ugandan data shows cases peak about four weeks after heavy rain."**
 
 ## 2. AI capabilities and why not a simpler tool (0:30–1:15)
 **On screen:** the diagram from the README (teacher → student → INT8 → phone).
