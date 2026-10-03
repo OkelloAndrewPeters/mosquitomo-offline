@@ -107,7 +107,8 @@ After de-duplication: **4,362 unique images**. The CLIP teacher **kept 3,179** (
 
 ## Guardrails (human in the loop)
 
-- **"Not sure, take a closer photo":** if the top class is below 50% confidence, the app says so and shows its *best guess*, labelled as a guess. Nothing can be saved as a report when the model is unsure.
+- **"Not sure, take a closer photo":** if the top class is below 50% confidence, the app says so and shows its *best guess*, labelled as a guess. The report can still be saved, but only as **"Needs checking"**, for a health worker to confirm.
+- **A person can overrule the AI:** if the model says "no breeding site" but the user disagrees, they can save it as **"Flagged by person"**. Every report shows whether the AI confirmed it or a person flagged it, and the shared message carries that label, so the health worker knows how much to trust it.
 - **The model only informs.** The VHT or the household decides what to do. The app never contacts anyone by itself. Sharing is a deliberate tap.
 - **No diagnosis.** The app never interprets symptoms. It only gives the standard prevention advice: nets, draining water, and "fever? test within 24 hours".
 - **A fixed list of answers.** Every output is one of 6 classes plus pre-written advice, so nothing is generated and nothing can be hallucinated.

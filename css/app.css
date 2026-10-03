@@ -87,3 +87,9 @@ input[type="search"] { width: 100%; min-height: 48px; border-radius: 999px; bord
 .pack { font-size: 14px; color: var(--ink-2); margin: 0; }
 .linkish { background: none; border: 0; padding: 0; color: var(--dusk); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: inherit; }
 .small { font-size: 13px; }
+
+.tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; vertical-align: 1px; }
+.tag.ok { background: #F6D9D6; color: var(--high); } .tag.check { background: #FBEFC9; color: #6B4E00; }
+.actions .tiny { margin-top: 8px; } .actions a { font-weight: 700; color: var(--dusk); }
+.del { background: none; border: 0; color: var(--ink-2); font-size: 18px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; vertical-align: middle; }
+.del:hover { background: var(--line); }

@@ -205,13 +205,22 @@ async function renderResult(out, file) {
       <ol class="bars">${ranked.slice(0, 3).map((x) => `<li><span>${esc(label(x.cls))}</span><i style="--w:${Math.round(x.p * 100)}%"></i><b>${Math.round(x.p * 100)}%</b></li>`).join('')}</ol>
       ${unsure ? '' : `<div class="row"><p class="fix">${esc(fix)}</p>${speakBtn(label(top.cls) + '. ' + fix)}</div>`}
       <p class="tiny">${t('ran_on_phone', { ms })}</p>
-      ${site && !unsure ? `<div class="actions"><button class="primary" id="save">${t('save_report')}</button></div>` : ''}
+      <div class="actions">
+        ${site && !unsure
+          ? `<button class="primary" id="save" data-check="0">${t('save_report')}</button>`
+          : `<button class="${unsure ? 'primary' : 'ghost'}" id="save" data-check="1">${unsure ? t('save_check') : t('save_override')}</button>`}
+        <p class="tiny" id="saveNote">${site && !unsure ? t('save_hint') : t('save_check_hint')}</p>
+      </div>
     </section>`;
   const save = $('#save');
   if (save) save.onclick = async () => {
+    const needsCheck = save.dataset.check === '1';
     const photo = await shrink(out.bitmap);
-    await addReport({ cls: top.cls, p: top.p, ms, lat: pos?.lat ?? null, lon: pos?.lon ?? null, photo, lang: getLang() });
+    if (!pos) pos = await locate().catch(() => null);
+    await addReport({ cls: top.cls, p: top.p, ms, lat: pos?.lat ?? null, lon: pos?.lon ?? null, photo, lang: getLang(),
+      needsCheck, override: needsCheck && !unsure && !site });
     save.disabled = true; save.textContent = t('saved'); toast(t('saved'));
+    $('#saveNote').innerHTML = `<a href="#reports">${t('view_reports')}</a>`;
   };
 }
 
@@ -219,13 +228,14 @@ async function renderResult(out, file) {
 async function viewReports() {
   const list = (await allReports().catch(() => [])).reverse();
   view.innerHTML = `<h2 class="pad">${t('reports_title')}</h2>${list.length ? `<ul class="reports">${list.map((r) => `
-    <li><img src="${URL.createObjectURL(r.photo)}" alt=""><div><b>${esc(label(r.cls))}</b><br><span class="muted">${new Date(r.createdAt).toLocaleString()} · ${Math.round(r.p * 100)}%</span><br>
-    <button class="ghost" data-share="${r.id}">${t('share_report')}</button> <button class="ghost" data-del="${r.id}" aria-label="Delete">✕</button></div></li>`).join('')}</ul>`
+    <li><img src="${URL.createObjectURL(r.photo)}" alt=""><div><b>${r.override ? t('possible_site') : esc(label(r.cls))}</b> <span class="tag ${r.needsCheck ? 'check' : 'ok'}">${r.needsCheck ? (r.override ? t('tag_person') : t('tag_check')) : t('tag_ai')}</span><br><span class="muted">${r.override ? t('ai_said', { label: label(r.cls), p: Math.round(r.p * 100) }) : Math.round(r.p * 100) + '%'} · ${new Date(r.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}${r.lat == null ? ' · ' + t('no_gps') : ''}</span><br>
+    <button class="ghost" data-share="${r.id}">${t('share_report')}</button> <button class="del" data-del="${r.id}" aria-label="Delete report">✕</button></div></li>`).join('')}</ul>`
     : `<p class="muted pad">${t('reports_empty')}</p>`}`;
   view.querySelectorAll('[data-del]').forEach((b) => (b.onclick = async () => { await deleteReport(+b.dataset.del); viewReports(); }));
   view.querySelectorAll('[data-share]').forEach((b) => (b.onclick = async () => {
     const r = list.find((x) => x.id === +b.dataset.share);
-    const text = t('share_text', { label: label(r.cls), p: Math.round(r.p * 100), lat: r.lat?.toFixed(5) ?? '?', lon: r.lon?.toFixed(5) ?? '?', date: new Date(r.createdAt).toLocaleDateString(), fix: t('fix_' + r.cls) });
+    const text = (r.needsCheck ? `[${r.override ? t('tag_person') : t('tag_check')}] ` : '') + t('share_text', { label: r.override ? t('possible_site') : label(r.cls), p: Math.round(r.p * 100), lat: r.lat?.toFixed(5) ?? '?', lon: r.lon?.toFixed(5) ?? '?', date: new Date(r.createdAt).toLocaleDateString(), fix: t('fix_' + r.cls) })
+      + (r.lat != null ? ` https://maps.google.com/?q=${r.lat.toFixed(5)},${r.lon.toFixed(5)}` : '');
     const file = new File([r.photo], `mosquitomo-${r.id}.jpg`, { type: 'image/jpeg' });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], text });
