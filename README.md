@@ -3,7 +3,7 @@
 **Hack-Nation 7th Global AI Hackathon · Challenge 4: Small AI for Development (World Bank) · Sector: Health**
 Built 3–4 October 2026 by Okello Andrew Peters (Kampala, Uganda).
 
-**Live app:** `https://okelloandrewpeters.github.io/<repo>/` · **Training notebook:** [`training/MosquitoMo_SiteNet_Colab.ipynb`](training/MosquitoMo_SiteNet_Colab.ipynb)
+**Live app:** **https://okelloandrewpeters.github.io/mosquitomo-offline/** · **Training notebook:** [`training/MosquitoMo_SiteNet_Colab.ipynb`](training/MosquitoMo_SiteNet_Colab.ipynb)
 
 > **Problem statement.** Because of this tool, a village health team (VHT) worker will confirm and act on mosquito breeding sites, and warn households when malaria risk is rising, *weeks before* cases peak. Without it, they would find out late, when clinics fill up. We know this because malaria cases in Uganda rise 2–8 weeks after heavy rain (Iganga–Mayuge HDSS), and Uganda has a single entomologist per district to check breeding sites.
 
