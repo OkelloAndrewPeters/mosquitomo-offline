@@ -5,8 +5,9 @@ Built 3–4 October 2026 by **Team Moja**: Okello Andrew Peters, a one-person te
 
 **Live app:** **https://okelloandrewpeters.github.io/mosquitomo-offline/** · **Training notebook:** [`training/MosquitoMo_SiteNet_Colab.ipynb`](training/MosquitoMo_SiteNet_Colab.ipynb)
 
-> **Problem statement.** Because of this tool, a village health team (VHT) worker will confirm and act on mosquito breeding sites, and warn households when malaria risk is rising, *weeks before* cases peak. Without it, they would find out late, when clinics fill up. We know this because malaria cases in Uganda rise 2–8 weeks after heavy rain (Iganga–Mayuge HDSS), and Uganda has a single entomologist per district to check breeding sites.
+> **Problem statement.** Because of this tool, **any Ugandan, and any village health team (VHT) worker,** will see when mosquito-breeding risk is rising where they live, and confirm and clear breeding sites around them, **weeks before malaria cases peak**, even with no internet. Today they find out late, when clinics fill up. We know this because malaria cases in Uganda rise 2–8 weeks after heavy rain (Iganga–Mayuge HDSS), and there is only about one entomologist per district to check breeding sites.
 
+**In one line:** AirQo made air pollution visible to every Ugandan. MosquitoMo Offline does the same for mosquito-breeding risk, on any phone and without a connection.
 ---
 
 ## What it does
@@ -18,9 +19,18 @@ Built 3–4 October 2026 by **Team Moja**: Okello Andrew Peters, a one-person te
 | 🗂️ | **Reports.** Confirmed sites are saved on the phone with the photo and GPS, then shared to a health worker by WhatsApp or SMS when there is signal (*store-and-forward*). | — | Yes (saving); sharing needs signal |
 | 🗣️ | **Local language.** The whole interface is in **English, Kiswahili and Luganda**, with spoken advice where the phone has a voice for that language. | — | Yes |
 
-**Who it is for.** A VHT worker or a household member in a peri-urban parish. She has a low-cost Android phone, buys data in small bundles, and is often out of signal.
+## Who it is for
 
-**Where it sits in her day.** After rain, on her household rounds, she checks the risk, photographs the water she finds, and gets a verdict and a fix on the spot. She records the confirmed sites, then shares them with the LC or health centre when she is back in signal.
+| User | What they get |
+|---|---|
+| **Every Ugandan household** (the main audience) | A daily, local reading of mosquito-breeding risk with an 8-week outlook, so families clear water and use nets *before* the risk peaks, not after someone has fever. Works on a low-cost Android phone, in English, Kiswahili or Luganda, with no data bundle. |
+| **Village health teams (VHTs) and community health workers** | The frontline layer. A photo check that confirms and classifies breeding sites on household rounds, and reports saved offline and shared with the LC or health centre when back in signal. This turns public alerts into action. |
+| **Schools, landlords and local councils (LCs)** | Early warning of when to organise drain clearing and clean-ups, and evidence (photos and GPS) of the sites that need it. |
+| **Travellers and tourists** | The risk for any of 108 towns, offline, plus a clear reminder that malaria prevention and medical advice still apply everywhere in Uganda, whatever the reading. |
+
+**What it measures, honestly:** MosquitoMo Offline does **not count mosquitoes**. It estimates **how favourable conditions are for mosquito breeding and malaria transmission** (rain over the past weeks, temperature, humidity and terrain), and checks **breeding sites** from photos. Mosquito counts would need traps or partner data, such as VectorCam field surveillance, which is a natural next step.
+
+**A day with it.** After heavy rain, Sarah in Kawempe sees her parish move to *Elevated*. She drains the puddle by her door and the family sleeps under nets. Her VHT, Joseph, is on household rounds with no signal. He photographs a blocked drain and a pile of tyres. The app confirms both as likely breeding sites and suggests the fix. He shares the reports with the LC that evening when he is back in coverage.
 
 ## Why AI, and why not a simpler tool?
 
