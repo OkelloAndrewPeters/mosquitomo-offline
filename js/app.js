@@ -339,8 +339,10 @@ async function viewAbout() {
       <p>Computed on the phone from 92 days of rainfall, temperature and humidity plus a 16-day forecast (Open-Meteo), and local terrain. Weights rain from 3 to 5 weeks ago most, because that is when rain turns into malaria risk. The data is saved, so readings keep working offline for up to 16 days.</p>
       <h3>Honest limits</h3>
       <p>A pilot tool, not medical advice. The risk index is not yet calibrated against clinic data. Luganda and Swahili text need review by native speakers and health workers.</p>
+      <p class="tiny" id="ver">Version …</p>
       <p class="muted">Built 3–4 October 2026 at the Hack-Nation Global AI Hackathon. It extends the MosquitoMo concept (public mosquito-risk information for Uganda) with on-device AI. Weather: Open-Meteo (CC BY 4.0). Places: © OpenStreetMap.</p>
     </section>`;
+  appVersion().then((v) => { const el = $('#ver'); if (el) el.textContent = 'App version ' + v; });
 }
 
 // ---------- shell: language, install, service worker ----------
@@ -352,6 +354,29 @@ document.documentElement.lang = getLang();
 let deferred = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; $('#install').hidden = false; });
 $('#install').onclick = async () => { if (deferred) { deferred.prompt(); deferred = null; $('#install').hidden = true; } };
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  // Check for a new version every time the app opens (and every 30 min); reload once when it takes over.
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+    reg.update().catch(() => {});
+    setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+  }).catch(() => {});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true; location.reload();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then((r) => r && r.update().catch(() => {}));
+  });
+}
+async function appVersion() {
+  const c = navigator.serviceWorker && navigator.serviceWorker.controller;
+  if (!c) return 'dev';
+  return new Promise((res) => {
+    const done = (e) => { if (e.data && e.data.version) { navigator.serviceWorker.removeEventListener('message', done); res(e.data.version); } };
+    navigator.serviceWorker.addEventListener('message', done); c.postMessage('version'); setTimeout(() => res('?'), 1500);
+  });
+}
 
 route();
