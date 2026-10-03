@@ -5,7 +5,7 @@ export const LANGS = { en: 'English', sw: 'Kiswahili', lg: 'Luganda' };
 const T = {
   en: {
     tab_risk: 'Risk', tab_check: 'Check water', tab_reports: 'Reports', tab_about: 'About',
-    use_location: 'Use my location', search_place: 'Search a place or type GPS', loading: 'Getting weather data…',
+    use_location: 'Use my location', gps_fallback: 'No GPS fix. Showing your last place.', gps_failed: 'Could not find your location. Turn on location, or search a place when online.', no_saved: 'You are offline and no reading is saved near here yet. Open the app once while online to save one.', near_note: 'Offline: showing the nearest saved place, {km} km away.', search_place: 'Search a place or type GPS', loading: 'Getting weather data…',
     risk_title: 'Mosquito breeding risk', out_of: 'out of 100',
     lvl_standard: 'Standard', lvl_elevated: 'Elevated', lvl_high: 'High',
     offline_note: 'Offline. Using weather saved on {date}. Works for {days} more days.',
@@ -40,7 +40,7 @@ const T = {
   },
   sw: {
     tab_risk: 'Hatari', tab_check: 'Kagua maji', tab_reports: 'Ripoti', tab_about: 'Kuhusu',
-    use_location: 'Tumia mahali nilipo', search_place: 'Tafuta mahali au andika GPS', loading: 'Inapakua hali ya hewa…',
+    use_location: 'Tumia mahali nilipo', gps_fallback: 'GPS haijapatikana. Inaonyesha mahali pako pa mwisho.', gps_failed: 'Imeshindwa kupata mahali ulipo. Washa location, au tafuta mahali ukiwa mtandaoni.', no_saved: 'Uko nje ya mtandao na hakuna usomaji uliohifadhiwa karibu. Fungua programu mara moja ukiwa mtandaoni.', near_note: 'Nje ya mtandao: inaonyesha mahali palipohifadhiwa karibu zaidi, km {km}.', search_place: 'Tafuta mahali au andika GPS', loading: 'Inapakua hali ya hewa…',
     risk_title: 'Hatari ya mazalia ya mbu', out_of: 'kati ya 100',
     lvl_standard: 'Kawaida', lvl_elevated: 'Imeongezeka', lvl_high: 'Juu',
     offline_note: 'Nje ya mtandao. Inatumia hali ya hewa iliyohifadhiwa {date}. Itafanya kazi siku {days} zaidi.',
@@ -75,7 +75,7 @@ const T = {
   },
   lg: {
     tab_risk: 'Obulabe', tab_check: 'Kebera amazzi', tab_reports: 'Lipoota', tab_about: 'Ebikwata ku app',
-    use_location: 'Kozesa we ndi', search_place: 'Noonya ekifo oba wandiika GPS', loading: 'Tufuna ebikwata ku budde…',
+    use_location: 'Kozesa we ndi', gps_fallback: 'GPS tefunise. Tulaga ekifo kyo eky\'enkomerero.', gps_failed: 'Tetusobodde kuzuula w\'oli. Ggulawo location, oba noonya ekifo ng\'oli ku mutimbagano.', no_saved: 'Toli ku mutimbagano era tewali kiterekeddwa kumpi wano. Ggulawo app omulundi gumu ng\'oli ku mutimbagano.', near_note: 'Toli ku mutimbagano: tulaga ekifo ekiterekeddwa ekisinga okumpi, km {km}.', search_place: 'Noonya ekifo oba wandiika GPS', loading: 'Tufuna ebikwata ku budde…',
     risk_title: 'Obulabe bw\'ensiri okuzaalukuka', out_of: 'ku 100',
     lvl_standard: 'Bwa bulijjo', lvl_elevated: 'Bweyongedde', lvl_high: 'Bungi',
     offline_note: 'Toli ku mutimbagano. Tukozesa ebyaterekebwa nga {date}. Kijja kukola ennaku {days} endala.',

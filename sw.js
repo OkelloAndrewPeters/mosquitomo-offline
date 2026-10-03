@@ -1,5 +1,5 @@
 // Offline-first: the app shell, the AI runtime (WASM) and the SiteNet model are cached on install.
-const V = 'mmo-v1';
+const V = 'mmo-v2';
 const CORE = ['./', './index.html', './css/app.css', './manifest.webmanifest', './js/app.js', './js/risk.js', './js/weather.js',
   './js/i18n.js', './js/store.js', './js/sitenet.js', './icons/mark.svg', './icons/icon-192.png'];
 const AI = ['./vendor/ort/ort.wasm.min.mjs', './vendor/ort/ort-wasm-simd-threaded.mjs', './vendor/ort/ort-wasm-simd-threaded.wasm',

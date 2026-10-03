@@ -13,7 +13,7 @@ p { margin: 8px 0 0; }
 .muted { color: var(--ink-2); } .center { text-align: center; padding: 32px 0; } .tiny { font-size: 13px; color: var(--ink-2); }
 .pad { padding: 4px 4px 0; } .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 16px 8px; max-width: 560px; margin: 0 auto; }
+.top { position: sticky; top: 0; z-index: 15; background: var(--ground); box-shadow: 0 1px 0 var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) max(16px, calc((100% - 528px) / 2)) 8px; }
 .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--dusk); font-weight: 800; font-size: 19px; letter-spacing: -0.02em; }
 .brand small { font-weight: 600; color: var(--ink-2); font-size: 14px; }
 .top-r { display: flex; gap: 8px; align-items: center; }

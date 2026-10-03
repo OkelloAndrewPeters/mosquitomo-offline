@@ -1,5 +1,5 @@
 import { reading } from './risk.js';
-import { getData, placeName, search, locate, todayUG, lastPlace } from './weather.js';
+import { getData, placeName, search, locate, todayUG, lastPlace, nearestSaved, savedName } from './weather.js';
 import { t, label, getLang, setLang, LANGS, SPEECH_LANG } from './i18n.js';
 import { addReport, allReports, deleteReport, shrink } from './store.js';
 
@@ -55,7 +55,12 @@ async function viewRisk() {
   $('#gps').onclick = async () => {
     $('#reading').innerHTML = `<p class="muted center">${t('loading')}</p>`;
     try { const p = await locate(); show(p.lat, p.lon); }
-    catch { const l = lastPlace(); if (l) show(l.lat, l.lon); else $('#reading').innerHTML = `<p class="muted center">GPS?</p>`; }
+    catch {
+      // No GPS fix (common indoors or offline): fall back to the last place used on this phone
+      const l = lastPlace();
+      if (l) { show(l.lat, l.lon); toast(t('gps_fallback')); }
+      else $('#reading').innerHTML = `<p class="muted center">${t('gps_failed')}</p>`;
+    }
   };
   $('#sf').onsubmit = async (e) => {
     e.preventDefault(); const q = $('#q').value.trim(); if (q.length < 2) return;
@@ -73,14 +78,20 @@ async function viewRisk() {
 async function show(lat, lon, place) {
   $('#reading') && ($('#reading').innerHTML = `<p class="muted center">${t('loading')}</p>`);
   try {
-    const [d, nm] = await Promise.all([getData(lat, lon), place ? place : placeName(lat, lon)]);
+    const d = await getData(lat, lon);
+    let nm = place;
+    if (!nm && d.near) nm = savedName(d.near.lat, d.near.lon) || { name: `${d.near.lat.toFixed(2)}, ${d.near.lon.toFixed(2)}`, area: '' };
+    if (!nm) nm = (!navigator.onLine && savedName(lat, lon)) || (await placeName(lat, lon));
     const r = reading(d.series, todayUG(), d.tpi);
     current = { d, r, nm, lat, lon };
     if ((location.hash.slice(1) || 'risk') === 'risk') render();
   } catch {
-    $('#reading').innerHTML = `<p class="muted center">Offline — no saved data for this place yet.</p>`;
+    $('#reading').innerHTML = `<p class="muted center">${t('no_saved')}</p>`;
   }
 }
+
+// When the connection comes back, refresh the reading on screen automatically.
+window.addEventListener('online', () => { if (current) show(current.lat, current.lon, current.d.near ? null : current.nm); });
 
 function strip(r) {
   const W = 340, base = 74, bw = 16, gap = 4.2;
@@ -102,12 +113,13 @@ function render() {
   const note = d.offline
     ? t('offline_note', { date: new Date(d.fetchedAt).toLocaleDateString(), days: r.daysLeftOffline })
     : t('online_note', { time: new Date(d.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), days: r.daysLeftOffline });
+  const nearNote = d.near ? `<p class="note off">${t('near_note', { km: Math.max(1, Math.round(d.near.km)) })}</p>` : '';
   el.innerHTML = `
     <section class="card dusk" data-level="${lvl}">
       <div class="place">${esc(nm.name)}</div><div class="area">${esc(nm.area)}</div>
       <div class="score-row"><span class="score">${r.score}</span><span><span class="pill">${t('lvl_' + lvl)}</span><span class="of">${t('out_of')}</span></span></div>
       <div class="strip">${strip(r)}</div>
-      <p class="note ${d.offline ? 'off' : ''}">${note}</p>
+      ${nearNote}<p class="note ${d.offline ? 'off' : ''}">${note}</p>
     </section>
     <section class="card" data-level="${lvl}">
       <div class="row"><h2>${t('what_to_do')}</h2>${speakBtn(advice.join(' '))}</div>

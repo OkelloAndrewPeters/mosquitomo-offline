@@ -53,11 +53,35 @@ export async function getData(lat, lon) {
     return { ...out, offline: false };
   } catch (e) {
     if (cached) return { ...cached, offline: true };
+    // Offline and never fetched this exact spot: use the nearest place saved on the phone (within 30 km).
+    const near = nearestSaved(lat, lon, 30);
+    if (near) return { ...near.data, offline: true, near: { lat: near.lat, lon: near.lon, km: near.km } };
     throw e;
   }
 }
 
 export function lastPlace() { return load(KEY + 'last'); }
+
+const kmBetween = (a, b, c, d) => {
+  const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(x));
+};
+/** Nearest place with saved weather data (any age that still covers today). */
+export function nearestSaved(lat, lon, maxKm = Infinity) {
+  let best = null;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key.startsWith(KEY) || key === KEY + 'last') continue;
+      const [la, lo] = key.slice(KEY.length).split(',').map(Number);
+      const km = kmBetween(lat, lon, la, lo);
+      if (km <= maxKm && (!best || km < best.km)) best = { lat: la, lon: lo, km, data: load(key) };
+    }
+  } catch { /* storage blocked */ }
+  return best;
+}
+/** Name saved for a place (works offline). */
+export function savedName(lat, lon) { return load('mmo:name:' + k(lat, lon)); }
 
 export async function placeName(lat, lon) {
   const key = 'mmo:name:' + k(lat, lon);
@@ -81,6 +105,6 @@ export function locate() {
   return new Promise((res, rej) => {
     if (!navigator.geolocation) return rej(new Error('no-gps'));
     navigator.geolocation.getCurrentPosition((p) => res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }), rej,
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
+      { enableHighAccuracy: false, timeout: navigator.onLine ? 15000 : 8000, maximumAge: 600000 });
   });
 }
