@@ -14,7 +14,7 @@ Built 3–4 October 2026 by Okello Andrew Peters (Kampala, Uganda).
 | | Feature | AI? | Works offline? |
 |---|---|---|---|
 | 📷 | **Check water.** Photograph standing water. **SiteNet**, a 1.5M-parameter vision model running *on the phone*, says whether it is a likely breeding site, what kind (puddle, blocked drain, tyres/containers, brick or construction pit, swamp/paddy) and the specific fix. | **Yes**: on-device computer vision | Yes |
-| 📍 | **Risk.** A 0–100 breeding-risk reading for the user's location and an 8-week outlook, computed on the phone from rainfall, temperature, humidity and terrain. | Transparent rule-based model (no ML) | Yes, for up to 16 days after the last sync |
+| 📍 | **Risk.** A 0–100 breeding-risk reading for the user's location and an 8-week outlook, computed on the phone from rainfall, temperature, humidity and terrain. **Offline pack:** the first time the app is online, it saves weather for **108 Ugandan district towns and Kampala neighbourhoods**: 3 batched requests, about 300 KB. After that, searching "Gulu" works in airplane mode, with a town-level reading. | Transparent rule-based model (no ML) | Yes, for up to 16 days after the last sync, for any saved place or any of the 108 towns (offline search uses a bundled 5 KB gazetteer) |
 | 🗂️ | **Reports.** Confirmed sites are saved on the phone with the photo and GPS, then shared to a health worker by WhatsApp or SMS when there is signal (*store-and-forward*). | — | Yes (saving); sharing needs signal |
 | 🗣️ | **Local language.** The whole interface is in **English, Kiswahili and Luganda**, with spoken advice where the phone has a voice for that language. | — | Yes |
 
@@ -60,7 +60,7 @@ Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ G
 - **Open-Meteo** elevation API: a 9-point ring around the user to work out whether they are in a valley or on a ridge.
 - **OpenStreetMap Nominatim:** place names and search.
 
-**What travels over the network:** after the first visit, only weather refreshes (about 4 KB). Photos never leave the phone unless the user shares a report.
+**What travels over the network:** after the first visit, only weather refreshes: about 4 KB per place, and about 300 KB for the 108-town offline pack, refreshed at most twice a day. Photos never leave the phone unless the user shares a report.
 
 **Size budget (one-time download):**
 

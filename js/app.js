@@ -1,5 +1,6 @@
 import { reading } from './risk.js';
-import { getData, placeName, search, locate, todayUG, lastPlace, nearestSaved, savedName } from './weather.js';
+import { getData, placeName, search, locate, todayUG, lastPlace, nearestSaved, savedName, syncPack, packInfo } from './weather.js';
+import { searchLocal } from './places-ug.js';
 import { t, label, getLang, setLang, LANGS, SPEECH_LANG } from './i18n.js';
 import { addReport, allReports, deleteReport, shrink } from './store.js';
 
@@ -51,6 +52,7 @@ async function viewRisk() {
       <form id="sf" role="search"><input id="q" type="search" placeholder="${t('search_place')}" aria-label="${t('search_place')}"></form>
     </div>
     <ul class="results" id="results" hidden></ul>
+    <p class="pack" id="pack"></p>
     <div id="reading">${current ? '' : `<p class="muted center">${t('risk_title')}</p>`}</div>`;
   $('#gps').onclick = async () => {
     $('#reading').innerHTML = `<p class="muted center">${t('loading')}</p>`;
@@ -62,15 +64,25 @@ async function viewRisk() {
       else $('#reading').innerHTML = `<p class="muted center">${t('gps_failed')}</p>`;
     }
   };
+  const ul = $('#results');
+  const renderList = (list, q) => {
+    ul.hidden = false;
+    const hint = navigator.onLine ? '' : `<li class="muted small">${t('offline_search')}</li>`;
+    ul.innerHTML = list.length
+      ? hint + list.map((p, i) => `<li><button data-i="${i}"><b>${esc(p.name)}</b> <span class="muted">${esc(p.area)}</span></button></li>`).join('')
+      : `<li class="muted">${t('no_results', { q: esc(q) })}</li>`;
+    ul.querySelectorAll('button').forEach((b) => (b.onclick = () => { ul.hidden = true; $('#q').value = ''; const p = list[+b.dataset.i]; show(p.lat, p.lon, { name: p.name, area: p.area }); }));
+  };
+  $('#q').addEventListener('input', () => {           // instant suggestions from the built-in town list (no internet needed)
+    const q = $('#q').value.trim();
+    if (q.length < 2) { ul.hidden = true; return; }
+    renderList(searchLocal(q), q);
+  });
   $('#sf').onsubmit = async (e) => {
     e.preventDefault(); const q = $('#q').value.trim(); if (q.length < 2) return;
-    const ul = $('#results'); ul.hidden = false; ul.innerHTML = `<li class="muted">…</li>`;
-    try {
-      const list = await search(q);
-      ul.innerHTML = list.map((p, i) => `<li><button data-i="${i}"><b>${esc(p.name)}</b> <span class="muted">${esc(p.area)}</span></button></li>`).join('') || '<li class="muted">0</li>';
-      ul.querySelectorAll('button').forEach((b) => (b.onclick = () => { ul.hidden = true; const p = list[+b.dataset.i]; show(p.lat, p.lon, p); }));
-    } catch { ul.innerHTML = `<li class="muted">Offline</li>`; }
+    try { renderList(await search(q), q); } catch { renderList(searchLocal(q), q); }
   };
+  renderPack();
   if (current) render();
   else { const l = lastPlace(); if (l) show(l.lat, l.lon); }
 }
@@ -89,6 +101,23 @@ async function show(lat, lon, place) {
     $('#reading').innerHTML = `<p class="muted center">${t('no_saved')}</p>`;
   }
 }
+
+function renderPack(progress) {
+  const el = $('#pack'); if (!el) return;
+  const info = packInfo();
+  if (progress) { el.innerHTML = t('pack_saving', progress); return; }
+  el.innerHTML = info
+    ? `${t('pack_status', { n: info.towns, date: new Date(info.at).toLocaleDateString() })} ${navigator.onLine ? `<button class="linkish" id="packBtn">${t('pack_update')}</button>` : ''}`
+    : (navigator.onLine ? `<button class="linkish" id="packBtn">${t('pack_save')}</button>` : t('pack_none_offline'));
+  const b = $('#packBtn'); if (b) b.onclick = () => runPack(true);
+}
+function runPack(force = false) {
+  return syncPack({ force, onProgress: (done, total) => renderPack({ done, total }) })
+    .then(() => renderPack()).catch(() => renderPack());
+}
+// Save all towns for offline use the first time the app is online (and refresh twice a day).
+if (navigator.onLine) setTimeout(() => runPack(false), 1500);
+window.addEventListener('online', () => runPack(false));
 
 // When the connection comes back, refresh the reading on screen automatically.
 window.addEventListener('online', () => { if (current) show(current.lat, current.lon, current.d.near ? null : current.nm); });
@@ -113,7 +142,8 @@ function render() {
   const note = d.offline
     ? t('offline_note', { date: new Date(d.fetchedAt).toLocaleDateString(), days: r.daysLeftOffline })
     : t('online_note', { time: new Date(d.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), days: r.daysLeftOffline });
-  const nearNote = d.near ? `<p class="note off">${t('near_note', { km: Math.max(1, Math.round(d.near.km)) })}</p>` : '';
+  const nearNote = d.near ? `<p class="note off">${t('near_note', { km: Math.max(1, Math.round(d.near.km)) })}</p>`
+    : (d.pack ? `<p class="note off">${t('town_level')}</p>` : '');
   el.innerHTML = `
     <section class="card dusk" data-level="${lvl}">
       <div class="place">${esc(nm.name)}</div><div class="area">${esc(nm.area)}</div>

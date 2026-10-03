@@ -83,3 +83,7 @@ input[type="search"] { width: 100%; min-height: 48px; border-radius: 999px; bord
 .toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
 .toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.pack { font-size: 14px; color: var(--ink-2); margin: 0; }
+.linkish { background: none; border: 0; padding: 0; color: var(--dusk); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: inherit; }
+.small { font-size: 13px; }

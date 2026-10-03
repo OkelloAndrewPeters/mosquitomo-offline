@@ -2,6 +2,8 @@
 // One request fetches 92 days of history and a 16-day forecast (~4 KB). The app stores it
 // on the phone and keeps computing readings from it for up to 16 days with no connection.
 
+import { PLACES, searchLocal } from './places-ug.js';
+
 const KEY = 'mmo:wx:';
 const FRESH_MS = 6 * 3600 * 1000;
 
@@ -17,18 +19,51 @@ async function json(url) {
   return r.json();
 }
 
-async function fetchSeries(lat, lon) {
+const toSeries = (d) => ({
+  dates: d.daily.time, rain: d.daily.precipitation_sum, temp: d.daily.temperature_2m_mean,
+  rh: d.daily.relative_humidity_2m_mean || d.daily.time.map(() => null),
+});
+
+/** One request for one or many points (Open-Meteo accepts comma-separated coordinates). */
+async function fetchSeriesMany(lats, lons) {
   const base = 'https://api.open-meteo.com/v1/forecast';
   const q = (rh) => new URLSearchParams({
-    latitude: lat, longitude: lon, past_days: 92, forecast_days: 16, timezone: 'Africa/Kampala',
+    latitude: lats.join(','), longitude: lons.join(','), past_days: 92, forecast_days: 16, timezone: 'Africa/Kampala',
     daily: ['precipitation_sum', 'temperature_2m_mean', rh && 'relative_humidity_2m_mean'].filter(Boolean).join(','),
   });
   let d;
   try { d = await json(`${base}?${q(true)}`); } catch (e) { if (e.status !== 400) throw e; d = await json(`${base}?${q(false)}`); }
-  return {
-    dates: d.daily.time, rain: d.daily.precipitation_sum, temp: d.daily.temperature_2m_mean,
-    rh: d.daily.relative_humidity_2m_mean || d.daily.time.map(() => null),
-  };
+  return (Array.isArray(d) ? d : [d]).map(toSeries);
+}
+const fetchSeries = async (lat, lon) => (await fetchSeriesMany([lat], [lon]))[0];
+
+// ---------- Offline pack: readings for every town in the gazetteer ----------
+const PACK = 'mmo:pack';
+export const packInfo = () => load(PACK);
+let packing = null;
+/** Download weather for all gazetteer towns in batches of 50 (~3 requests). Skips if done in the last 12 h. */
+export function syncPack({ force = false, onProgress } = {}) {
+  if (packing) return packing;
+  const info = load(PACK);
+  if (!force && info && Date.now() - info.at < 12 * 3600 * 1000) return Promise.resolve(info);
+  if (!navigator.onLine) return Promise.resolve(info);
+  packing = (async () => {
+    let done = 0;
+    for (let i = 0; i < PLACES.length; i += 50) {
+      const chunk = PLACES.slice(i, i + 50);
+      const list = await fetchSeriesMany(chunk.map((p) => p.lat), chunk.map((p) => p.lon));
+      list.forEach((series, j) => {
+        const p = chunk[j], key = KEY + k(p.lat, p.lon), old = load(key);
+        if (!old || old.fetchedAt < Date.now() - FRESH_MS) save(key, { series, tpi: old?.tpi ?? null, elevation: old?.elevation ?? null, fetchedAt: Date.now(), pack: true });
+        if (!load('mmo:name:' + k(p.lat, p.lon))) save('mmo:name:' + k(p.lat, p.lon), { name: p.name, area: p.area });
+      });
+      done += chunk.length; onProgress && onProgress(done, PLACES.length);
+    }
+    const out = { at: Date.now(), towns: PLACES.length };
+    save(PACK, out);
+    return out;
+  })().finally(() => { packing = null; });
+  return packing;
 }
 
 async function fetchTPI(lat, lon) {
@@ -44,7 +79,7 @@ async function fetchTPI(lat, lon) {
 export async function getData(lat, lon) {
   const key = KEY + k(lat, lon);
   const cached = load(key);
-  if (cached && Date.now() - cached.fetchedAt < FRESH_MS) return { ...cached, offline: false };
+  if (cached && (Date.now() - cached.fetchedAt < FRESH_MS || !navigator.onLine)) return { ...cached, offline: !navigator.onLine };
   try {
     const [series, terr] = await Promise.all([fetchSeries(lat, lon), fetchTPI(lat, lon).catch(() => ({ tpi: null, elevation: null }))]);
     const out = { series, tpi: terr.tpi, elevation: terr.elevation, fetchedAt: Date.now() };
@@ -97,6 +132,15 @@ export async function placeName(lat, lon) {
 export async function search(q) {
   const m = q.trim().match(/^(-?\d{1,2}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/);
   if (m) return [{ name: `${(+m[1]).toFixed(4)}, ${(+m[2]).toFixed(4)}`, area: 'GPS', lat: +m[1], lon: +m[2] }];
+  const local = searchLocal(q);                       // works offline
+  if (!navigator.onLine) return local;
+  let online = [];
+  try { online = await searchOnline(q); } catch { return local; }
+  const seen = new Set(local.map((p) => p.name.toLowerCase()));
+  return [...local, ...online.filter((p) => !seen.has(p.name.toLowerCase()))].slice(0, 8);
+}
+
+async function searchOnline(q) {
   const d = await json(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ug,ke,tz,rw&limit=6&addressdetails=1&accept-language=en&q=${encodeURIComponent(q)}`);
   return d.map((x) => ({ name: x.name || x.display_name.split(',')[0], area: (x.address && (x.address.county || x.address.state || x.address.country)) || '', lat: +x.lat, lon: +x.lon }));
 }
