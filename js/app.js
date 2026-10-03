@@ -209,19 +209,22 @@ async function viewMap() {
     try {
       await loadLeaflet();
       if (mapObj) { mapObj.remove(); mapObj = null; }
-      mapObj = L.map('map', { zoomControl: true }).setView([1.37, 32.29], 7);
+      mapObj = L.map('map', { zoomControl: true, preferCanvas: false }).setView([1.37, 32.29], 6);
+      setTimeout(() => mapObj && mapObj.invalidateSize(), 200);
+      mapObj.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenStreetMap' }).addTo(mapObj);
       towns.forEach((p) => {
         const m = L.circleMarker([p.lat, p.lon], { radius: 8, color: '#fff', weight: 2, fillColor: COLORS[p.level], fillOpacity: 0.95 }).addTo(mapObj);
         m.bindTooltip(`${esc(p.name)}: ${p.score}`, { direction: 'top', offset: [0, -6] });
         m.on('click', () => open(p));
       });
+      mapObj.fitBounds(towns.map((p) => [p.lat, p.lon]), { padding: [16, 16] });
       return;
     } catch { /* fall through to offline drawing */ }
   }
   // Offline: plot towns by latitude/longitude on a plain panel (Uganda spans ~29.5–35°E, -1.5–4.3°N)
   const W = 340, H = 360, x = (lo) => ((lo - 29.4) / (35.1 - 29.4)) * (W - 20) + 10, y = (la) => ((4.35 - la) / (4.35 + 1.55)) * (H - 20) + 10;
-  $('#map').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('map_title')}">
+  $('#map').innerHTML = `<svg class="offline-map" viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('map_title')}">
     <rect width="${W}" height="${H}" rx="14" fill="#E3E8E1"/>
     <text x="${x(32.2)}" y="${y(-0.9)}" font-size="11" fill="#7d8a84" text-anchor="middle">Lake Victoria</text>
     ${towns.map((p, i) => `<g class="town" data-i="${i}" tabindex="0" role="button" aria-label="${esc(p.name)} ${p.score}">

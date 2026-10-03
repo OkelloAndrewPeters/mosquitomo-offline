@@ -94,8 +94,8 @@ input[type="search"] { width: 100%; min-height: 48px; border-radius: 999px; bord
 .del { background: none; border: 0; color: var(--ink-2); font-size: 18px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; vertical-align: middle; }
 .del:hover { background: var(--line); }
 
-.map { height: calc(100vh - 260px); min-height: 340px; border-radius: 16px; overflow: hidden; background: #E3E8E1; }
-.map svg { width: 100%; height: 100%; } .map .town { cursor: pointer; }
+.map { position: relative; z-index: 0; isolation: isolate; height: calc(100vh - 260px); min-height: 340px; border-radius: 16px; overflow: hidden; background: #E3E8E1; }
+.map > svg.offline-map { width: 100%; height: 100%; display: block; } .map .town { cursor: pointer; }
 .chip { font: 800 12px/22px system-ui, sans-serif; width: 30px; height: 24px; border-radius: 8px; text-align: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
 .legend-row { display: flex; gap: 14px; font-size: 14px; padding: 8px 4px 0; flex-wrap: wrap; }
 .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
