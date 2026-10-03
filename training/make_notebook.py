@@ -19,7 +19,7 @@ Pipeline:
 4. **Evaluation**: a held-out test set with accuracy, macro-F1, a confusion matrix and student–teacher agreement.
 5. **Export**: ONNX FP32, then **static INT8 quantization** (QDQ, per-channel). The model runs in the browser with ONNX Runtime Web (WebAssembly), fully offline.
 
-**Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**. It takes about 30–40 minutes. At the end, a zip downloads with the model, labels and metrics.
+**Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**. It takes about 40–50 minutes. *(v2: MobileNetV3-Large student, weight-only INT8, licence manifest saved.)* At the end, a zip downloads with the model, labels and metrics.
 """)
 
 code(r"""
@@ -274,13 +274,16 @@ dl_tr = DataLoader(DS(tr, train_tf), batch_size=64, shuffle=True, num_workers=2,
 dl_va = DataLoader(DS(va, eval_tf), batch_size=128, num_workers=2)
 dl_te = DataLoader(DS(te, eval_tf), batch_size=128, num_workers=2)
 
-student = timm.create_model('mobilenetv3_small_100', pretrained=True, num_classes=len(CLASSES)).to(DEVICE)
+STUDENT = 'mobilenetv3_large_100'   # v1 used mobilenetv3_small_100 (1.5M params): 69.6% test acc, capacity-limited
+student = timm.create_model(STUDENT, pretrained=True, num_classes=len(CLASSES), drop_rate=0.2).to(DEVICE)
 print('student params (M):', round(sum(p.numel() for p in student.parameters()) / 1e6, 2))
 # class weights against imbalance
 cw = torch.tensor([len(keep_y) / (len(CLASSES) * max(1, keep_y.count(k))) for k in range(len(CLASSES))], dtype=torch.float).to(DEVICE)
-EPOCHS, TEMP, ALPHA = 14, 2.0, 0.5
-opt = torch.optim.AdamW(student.parameters(), lr=1.5e-3, weight_decay=0.02)
-sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1.5e-3, total_steps=EPOCHS * len(dl_tr), pct_start=0.15)
+EPOCHS, TEMP, ALPHA = 24, 2.0, 0.5
+head = [p for n, p in student.named_parameters() if n.startswith('classifier')]
+body = [p for n, p in student.named_parameters() if not n.startswith('classifier')]
+opt = torch.optim.AdamW([{'params': body, 'lr': 4e-4}, {'params': head, 'lr': 2e-3}], weight_decay=0.03)
+sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=[4e-4, 2e-3], total_steps=EPOCHS * len(dl_tr), pct_start=0.1)
 
 def evaluate(dl):
     student.eval(); P, Y, TA = [], [], []
@@ -329,24 +332,42 @@ ax.set_xlabel('predicted'); ax.set_ylabel('label'); ax.set_title('SiteNet studen
 md("## 5. Export to ONNX, quantize to INT8, check parity and latency")
 code(r"""
 import onnx, onnxruntime as ort
-from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantFormat, QuantType
-from onnxruntime.quantization.shape_inference import quant_pre_process
+from onnx import numpy_helper, helper
 student.eval().cpu()
 dummy = torch.randn(1, 3, SIZE, SIZE)
 fp32 = f'{OUT}/sitenet_fp32.onnx'
 torch.onnx.export(student, dummy, fp32, input_names=['input'], output_names=['logits'], opset_version=17,
                   dynamic_axes={'input': {0: 'batch'}, 'logits': {0: 'batch'}}, dynamo=False)
-pre = f'{OUT}/sitenet_pre.onnx'; quant_pre_process(fp32, pre)
+# Weight-only INT8 (per-channel weights + DequantizeLinear, FP32 compute). Static QDQ INT8 collapsed MobileNetV3 to chance in v1.
+def weight_only_int8(src, dst, min_elems=1024):
+    m = onnx.load(src); g = m.graph
+    inits = {i.name: i for i in g.initializer}
+    users = {}
+    for n in g.node:
+        for k, inp in enumerate(n.input): users.setdefault(inp, []).append((n, k))
+    new_inits, new_nodes, removed = [], [], set()
+    for name, init in inits.items():
+        w = numpy_helper.to_array(init)
+        if w.dtype != np.float32 or w.size < min_elems or w.ndim < 2: continue
+        us = users.get(name, [])
+        if not us or not all(n.op_type in ('Conv', 'Gemm', 'MatMul') and k == 1 for n, k in us): continue
+        axis = 0 if us[0][0].op_type == 'Conv' or (us[0][0].op_type == 'Gemm' and any(a.name == 'transB' and a.i == 1 for a in us[0][0].attribute)) else 1
+        red = tuple(i for i in range(w.ndim) if i != axis)
+        scale = np.abs(w).max(axis=red) / 127.0; scale[scale == 0] = 1e-8
+        shape = [1] * w.ndim; shape[axis] = -1
+        q = np.clip(np.round(w / scale.reshape(shape)), -127, 127).astype(np.int8)
+        new_inits += [numpy_helper.from_array(q, name + '_q'), numpy_helper.from_array(scale.astype(np.float32), name + '_s'),
+                      numpy_helper.from_array(np.zeros(scale.shape, np.int8), name + '_z')]
+        new_nodes.append(helper.make_node('DequantizeLinear', [name + '_q', name + '_s', name + '_z'], [name], axis=axis, name=name + '_dq'))
+        removed.add(name)
+    keep = [i for i in g.initializer if i.name not in removed]
+    del g.initializer[:]; g.initializer.extend(keep + new_inits)
+    nodes = list(g.node); del g.node[:]; g.node.extend(new_nodes + nodes)
+    onnx.checker.check_model(m); onnx.save(m, dst)
+    return len(removed)
 
-class Calib(CalibrationDataReader):
-    def __init__(s, ids): s.it = iter(ids[:300])
-    def get_next(s):
-        i = next(s.it, None)
-        if i is None: return None
-        return {'input': eval_tf(Image.open(keep_p[i]).convert('RGB')).unsqueeze(0).numpy()}
 int8 = f'{OUT}/sitenet_int8.onnx'
-quantize_static(pre, int8, Calib(list(tr)), quant_format=QuantFormat.QDQ, per_channel=True,
-                activation_type=QuantType.QUInt8, weight_type=QuantType.QInt8)
+print('quantized tensors:', weight_only_int8(fp32, int8))
 
 def ort_eval(path):
     s = ort.InferenceSession(path, providers=['CPUExecutionProvider']); P = []; t = []
@@ -354,19 +375,24 @@ def ort_eval(path):
         x = eval_tf(Image.open(keep_p[i]).convert('RGB')).unsqueeze(0).numpy()
         t0 = time.perf_counter(); o = s.run(None, {'input': x})[0]; t.append(time.perf_counter() - t0); P.append(int(o.argmax()))
     P = np.array(P); Yt = np.array([keep_y[i] for i in te])
-    return (P == Yt).mean(), f1_score(Yt, P, average='macro'), np.median(t) * 1000, os.path.getsize(path) / 1e6
-res = {}
+    return (P == Yt).mean(), f1_score(Yt, P, average='macro'), np.median(t) * 1000, os.path.getsize(path) / 1e6, P
+res, preds = {}, {}
 for name, pth in [('fp32', fp32), ('int8', int8)]:
-    a, f, ms, mb = ort_eval(pth); res[name] = dict(accuracy=round(a, 4), macro_f1=round(f, 4), median_ms_colab_cpu=round(ms, 2), size_mb=round(mb, 2))
+    a, f, ms, mb, P = ort_eval(pth); preds[name] = P
+    res[name] = dict(accuracy=round(a, 4), macro_f1=round(f, 4), median_ms_colab_cpu=round(ms, 2), size_mb=round(mb, 2))
     print(name, res[name])
+res['int8']['top1_agreement_with_fp32'] = round(float((preds['int8'] == preds['fp32']).mean()), 4)
+res['int8']['method'] = 'weight-only per-channel INT8 + DequantizeLinear, FP32 compute'
+print('int8 vs fp32 agreement on test set:', res['int8']['top1_agreement_with_fp32'])
 """)
 
 code(r"""
 # Pick the model to ship: INT8 unless it loses more than 2 points of accuracy
 ship = 'int8' if res['int8']['accuracy'] >= res['fp32']['accuracy'] - 0.02 else 'fp32'
+print('shipping', ship)
 shutil.copy(int8 if ship == 'int8' else fp32, f'{OUT}/sitenet.onnx')
 meta = {
-  'model': 'SiteNet (MobileNetV3-Small student distilled from OpenCLIP ViT-B/32 laion2b_s34b_b79k)',
+  'model': f'SiteNet ({STUDENT} student distilled from OpenCLIP ViT-B/32 laion2b_s34b_b79k)',
   'trained_on': time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime()), 'shipped': ship,
   'classes': CLASSES, 'labels': LABELS, 'input': {'size': SIZE, 'mean': MEAN, 'std': STD, 'layout': 'NCHW', 'resize': 256, 'center_crop': SIZE},
   'data': {'sources': 'Wikimedia Commons (open licences, per-image record in commons_manifest.csv) + Bing image search results (unknown licences, used only for training, not redistributed)', 'unique_images': len(items), 'kept_after_teacher_cleaning': len(keep_p), 'relabeled': relabeled, 'dropped': dropped,
