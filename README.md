@@ -1,7 +1,7 @@
 # MosquitoMo Offline: small AI for malaria prevention where the network ends
 
 **Hack-Nation 7th Global AI Hackathon · Challenge 4: Small AI for Development (World Bank) · Sector: Health**
-Built 3–4 October 2026 by Okello Andrew Peters (Kampala, Uganda).
+Built 3–4 October 2026 by **Team Moja**: Okello Andrew Peters, a one-person team from Kampala, Uganda. ("Moja" means "one" in Swahili.)
 
 **Live app:** **https://okelloandrewpeters.github.io/mosquitomo-offline/** · **Training notebook:** [`training/MosquitoMo_SiteNet_Colab.ipynb`](training/MosquitoMo_SiteNet_Colab.ipynb)
 
