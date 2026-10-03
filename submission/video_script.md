@@ -13,8 +13,8 @@ Record on a phone screen (Android screen recorder) plus 2–3 short shots of rea
 ## 2. AI capabilities and why not a simpler tool (0:30–1:15)
 **On screen:** the diagram from the README (teacher → student → INT8 → phone).
 
-> "The AI is SiteNet, a computer-vision model small enough to run on a cheap phone with no internet. I trained it this weekend. A large model, OpenCLIP, trained on about two billion image–text pairs, labelled and cleaned thousands of openly licensed photos from Wikimedia Commons. Then I distilled what it knows into a tiny MobileNet, 1.5 million parameters, and quantized it to 8-bit. The whole model is about [SIZE] megabytes, small enough to send on WhatsApp.
-> Why not just SMS? SMS can carry a report, but it can't check it. Not every patch of water breeds mosquitoes, and no supervisor can visit every report. SiteNet checks each photo on the spot, offline, in about [MS] milliseconds.
+> "The AI is SiteNet, a computer-vision model small enough to run on a cheap phone with no internet. I trained it this weekend. A large model, OpenCLIP, trained on about two billion image–text pairs, labelled and cleaned thousands of openly licensed photos from Wikimedia Commons. Then I distilled what it knows into a small MobileNet, 4.2 million parameters, and compressed it to 8-bit weights. The whole model is 4.4 megabytes, small enough to send on WhatsApp. I also trained a 1.6 MB version, and I explain the trade-off in the README.
+> Why not just SMS? SMS can carry a report, but it can't check it. Not every patch of water breeds mosquitoes, and no supervisor can visit every report. SiteNet checks each photo on the spot, offline, in a fraction of a second.
 > Guardrails: if it isn't sure, it says 'not sure, take a closer photo', and you can't save an unsure report. It gives one of six fixed answers with pre-written advice, so it can't make things up. It never diagnoses anyone. And the person always decides what to do."
 
 ## 3. Tool demo (1:15–2:45), the most important part

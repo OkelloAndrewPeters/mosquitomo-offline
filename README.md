@@ -14,7 +14,7 @@ Built 3–4 October 2026 by **Team Moja**: Okello Andrew Peters, a one-person te
 
 | | Feature | AI? | Works offline? |
 |---|---|---|---|
-| 📷 | **Check water.** Photograph standing water. **SiteNet**, a 1.5M-parameter vision model running *on the phone*, says whether it is a likely breeding site, what kind (puddle, blocked drain, tyres/containers, brick or construction pit, swamp/paddy) and the specific fix. | **Yes**: on-device computer vision | Yes |
+| 📷 | **Check water.** Photograph standing water. **SiteNet**, a 4.2M-parameter vision model (4.4 MB) running *on the phone*, says whether it is a likely breeding site, what kind (puddle, blocked drain, tyres/containers, brick or construction pit, swamp/paddy) and the specific fix. | **Yes**: on-device computer vision | Yes |
 | 📍 | **Risk.** A 0–100 breeding-risk reading for the user's location and an 8-week outlook, computed on the phone from rainfall, temperature, humidity and terrain. **Offline pack:** the first time the app is online, it saves weather for **108 Ugandan district towns and Kampala neighbourhoods**: 3 batched requests, about 300 KB. After that, searching "Gulu" works in airplane mode, with a town-level reading. | Transparent rule-based model (no ML) | Yes, for up to 16 days after the last sync, for any saved place or any of the 108 towns (offline search uses a bundled 5 KB gazetteer) |
 | 🗺️ | **Map.** Risk across Uganda for 108 towns, coloured by level. Online it uses an OpenStreetMap background. **Offline** it draws the saved towns on a plain panel, and tapping a town opens its full reading. | — | Yes (without the background map) |
 | 🏥 | **Fever and care.** "Fever? Test within 24 hours", plus nearby health facilities from OpenStreetMap with call and directions buttons. The last list found is saved, so it is still available offline. No diagnosis. | — | Last saved list |
@@ -43,7 +43,7 @@ Built 3–4 October 2026 by **Team Moja**: Okello Andrew Peters, a one-person te
 ## Technical depth: infrastructure, models, APIs
 
 ```
-Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ GitHub Pages (static) ──▶ phone (PWA, service-worker cache)
+Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (4.4 MB) ──▶ GitHub Pages (static) ──▶ phone (PWA, service-worker cache)
    │  OpenCLIP ViT-B/32 teacher                                                            │
    │  MobileNetV3-Small student                                                            ├─ ONNX Runtime Web (WASM, 1 thread)
    └─ Wikimedia Commons + web images                                                       ├─ risk engine (JS) ◀─ Open-Meteo (cached 16 days)
@@ -52,18 +52,25 @@ Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ G
 
 **Models**
 - **Teacher:** OpenCLIP **ViT-B/32** (`laion2b_s34b_b79k`, about 150M parameters). It does zero-shot classification with prompt ensembles per habitat class, and is used to (a) clean noisy web labels and (b) produce soft labels.
-- **Student, which ships to the phone:** **MobileNetV3-Small** (timm, ImageNet-pretrained, about 1.5M parameters). It is fine-tuned by **knowledge distillation**: (1−α)·CE(cleaned labels, class-weighted, label smoothing 0.05) + α·T²·KL(student‖teacher) with T = 2 and α = 0.5, using AdamW and OneCycle for 14 epochs at 224 px with augmentation.
-- **Compression: what worked and what did not.** Standard **static INT8** (weights and activations, QDQ, 300-image calibration) **collapsed the model to 21.6%**, which is chance level. Dynamic Conv quantization did the same (31% agreement). This is a known weak spot of MobileNetV3's hard-swish and squeeze-excite activations. We therefore ship **weight-only INT8**: per-channel symmetric 8-bit weights with `DequantizeLinear`, and FP32 compute. It is **6.1 MB → 1.65 MB (1.46 MB gzipped)** with **99% top-1 agreement** with the FP32 model on 96 test-derived inputs (mean |Δp| = 0.06). See `training/weight_only_int8.py`.
-- **Results (477 held-out test images, never seen in training):**
+- **Student, which ships to the phone:** **MobileNetV3-Large** (timm, ImageNet-pretrained, 4.2M parameters). It is fine-tuned by **knowledge distillation**: (1−α)·CE(cleaned labels, class-weighted, label smoothing 0.05) + α·T²·KL(student‖teacher) with T = 2 and α = 0.5. Training uses AdamW with separate learning rates (4e-4 for the backbone, 2e-3 for the head) and OneCycle, for 24 epochs at 224 px with augmentation.
+- **Compression: what worked and what did not.** Standard **static INT8** (weights and activations, QDQ, 300-image calibration) **collapsed MobileNetV3 to 21.6%**, which is chance level. Dynamic Conv quantization did the same. This is a known weak spot of MobileNetV3's hard-swish and squeeze-excite activations. We therefore ship **weight-only INT8**: per-channel symmetric 8-bit weights with `DequantizeLinear`, and FP32 compute. It is **16.8 MB → 4.4 MB (3.9 MB gzipped)**, scores **72.3% on the full test set (FP32: 72.1%)**, and agrees with FP32 on 97.4% of test images. See `training/weight_only_int8.py`.
+- **Results (494 held-out test images, never seen in training):**
 
 | Metric | Value |
 |---|---|
-| **Breeding site present vs absent** (the decision the VHT acts on) | **87.4%** |
-| 6-class accuracy · macro-F1 | 69.6% · 68.0% |
-| Per-class F1 | wetland 0.79 · puddle 0.77 · no site 0.70 · drain 0.65 · containers 0.59 · pits 0.58 |
-| Student vs teacher agreement | 69.6% (1.5M-parameter student vs 150M-parameter teacher) |
+| **Breeding site present vs absent** (the decision the user acts on) | **87.9%** |
+| 6-class accuracy · macro-F1 | 72.1% · 70.8% (shipped INT8: 72.3% · 70.8%) |
+| Per-class F1 | wetland 0.81 · no site 0.75 · puddle 0.72 · containers 0.70 · drain 0.67 · pits 0.62 |
+| Speed | 19.6 ms on a Colab CPU core · about 35 ms in desktop Chrome (single-thread WASM). Expect roughly 150–300 ms on a budget Android phone. |
 
-  Training stopped improving after epoch 10, which means the model was capacity-limited rather than under-trained. Containers and pits get confused most, often with each other. A MobileNetV3-Large student (about 4M parameters) is the next experiment (`training/planB_larger_student_cell.py`).
+  **Small vs large, a deliberate trade-off.** We trained two students on the same pipeline:
+
+  | Student | Params | INT8 size | 6-class acc. | Site vs no-site | Containers / pits F1 | Browser speed |
+  |---|---|---|---|---|---|---|
+  | v1: MobileNetV3-Small | 1.5M | **1.65 MB** | 69.6% | 87.4% | 0.59 / 0.58 | **~14 ms** |
+  | **v2: MobileNetV3-Large (shipped)** | 4.2M | 4.4 MB | **72.1%** | **87.9%** | **0.70 / 0.62** | ~35 ms |
+
+  v1 plateaued at epoch 10 (capacity-limited). v2 is 2.5 points better and clearly better on the classes v1 confused, while still small enough to send on WhatsApp. We ship v2. v1 remains the right choice for the oldest phones (`training/results/v1_small`). The two runs used different random splits, so compare the numbers as indicative only.
 
 **Inference on the phone:** ONNX Runtime Web 1.30 (WebAssembly, SIMD, single thread, because GitHub Pages is not cross-origin isolated and one thread also suits low-end phones). Preprocessing is a 256 px resize, a 224 centre-crop and ImageNet normalisation. I verified that the browser output gives the **same top class as Python ONNX Runtime**, with probabilities within about 3 points (the difference comes from canvas vs PIL resizing).
 
@@ -80,7 +87,7 @@ Colab (T4 GPU) ── training ──▶ SiteNet INT8 ONNX (~1.5 MB) ──▶ G
 | Part | Size |
 |---|---|
 | App code, icons, text in 3 languages | ~0.1 MB |
-| SiteNet model (weight-only INT8) | **1.65 MB** (1.46 MB gzipped) |
+| SiteNet model (weight-only INT8) | **4.4 MB** (3.9 MB gzipped) |
 | ONNX Runtime Web (WASM) | 14.2 MB raw, **3.7 MB gzipped** |
 
 Everything is cached by the service worker. The model file is small enough to **side-load over Bluetooth or send on WhatsApp**.
@@ -89,10 +96,10 @@ Everything is cached by the service worker. The model file is small enough to **
 
 | Dataset | Use | Licence | Size |
 |---|---|---|---|
-| **Wikimedia Commons** (40 searches across 6 classes, via the MediaWiki API) | Training and test images | Open licences, recorded per image at download: CC BY-SA 4.0/3.0/2.0, CC BY 4.0/2.0, CC0, public domain | about 3,950 images |
+| **Wikimedia Commons** (40 searches across 6 classes, via the MediaWiki API; **per-image record in [`training/results/v2_large/commons_manifest.csv`](training/results/v2_large/commons_manifest.csv)**: title, URL, licence, author) | Training and test images | CC BY-SA 4.0 (1,402) · CC BY-SA 2.0 (1,302) · public domain (451) · CC BY-SA 3.0 (292) · CC BY 2.0 (239) · CC0 (227) · CC BY 4.0 (157) · other open (150) | **4,220 images** |
 | Bing image search results (36 queries) | Extra training images | Unknown; used only to train, not redistributed | about 410 images |
 
-After de-duplication: **4,362 unique images**. The CLIP teacher **kept 3,179** (it relabelled 1,074 and dropped 1,183). Per class: no site 683 · puddle 635 · drain 236 · containers 419 · pits 537 · wetland 669. Split 70/15/15: 2,225 train, 477 validation, 477 test. *(The per-image licence manifest was lost when the Colab runtime disconnected. The notebook regenerates it on every run.)*
+After de-duplication: **4,481 unique images**. The CLIP teacher **kept 3,291**, relabelling or dropping the rest. Per class: no site 776 · puddle 648 · drain 238 · containers 414 · pits 547 · wetland 668. Split 70/15/15: 2,303 train, 494 validation, 494 test.
 | OpenCLIP ViT-B/32, LAION-2B | Teacher labels | MIT (code), LAION-2B (CC BY 4.0 metadata) | — |
 | Open-Meteo (ECMWF IFS, DWD ICON and others) | Risk engine inputs | CC BY 4.0 | live |
 | OpenStreetMap | Place names | ODbL | live |
@@ -101,7 +108,7 @@ After de-duplication: **4,362 unique images**. The CLIP teacher **kept 3,179** (
 - **Few Ugandan field photos.** Most images are from elsewhere, many from Europe and North America. Muddy brown peri-urban drains, jerrycans and brick pits as they look in Kawempe are under-represented.
 - **No larvae.** The model sees *water that could breed mosquitoes*, not mosquitoes or larvae. It cannot tell *Anopheles* habitat from *Aedes* or *Culex* habitat.
 - **Labels come from a model (CLIP), not entomologists.** Test-set labels share the teacher's biases, so the accuracy above is an *upper bound* on field accuracy.
-- **Drains are the weakest class** (236 images). Many 'drain' photos were dry or had no visible water, so the teacher moved them elsewhere.
+- **Drains are the weakest class** (238 images). Many 'drain' photos were dry or had no visible water, so the teacher moved them elsewhere.
 - **Includes some unrelated web photos** (for example, news photos of people) in the 'no site' class, from the web-search part of the data.
 - **No night, close-up macro or very blurry phone shots.**
 - **The risk engine is not yet calibrated against clinic data** (DHIS2). Its weights come from published lag and temperature studies.
@@ -146,7 +153,7 @@ This builds on **MosquitoMo**, my concept (concept note dated 30 September 2026)
 
 I live in Kampala, where malaria is part of ordinary life, not a statistic. For me, localising AI means three things.
 
-**It runs on what people already have.** A cheap Android phone, an expired data bundle, and a language that isn't English. That is why the model is 1.65 MB, why the app works in airplane mode, and why it speaks Luganda and Kiswahili. AI that only works on fast Wi-Fi in a big office is not built for us.
+**It runs on what people already have.** A cheap Android phone, an expired data bundle, and a language that isn't English. That is why the model is a few megabytes, why the app works in airplane mode, and why it speaks Luganda and Kiswahili. AI that only works on fast Wi-Fi in a big office is not built for us.
 
 **It starts from our problems and our evidence.** The 2–8-week lag between rain and malaria comes from studies in Iganga and Mayuge. AirQo, built at Makerere, showed that a Ugandan team can make an invisible risk visible to everyone. I want to do the same for mosquitoes.
 
