@@ -3,7 +3,7 @@
 //   and fall back to the saved copy when offline or on a very slow connection.
 // - Big, rarely-changing files (AI model, WASM runtime, map library, icons): CACHE-FIRST, for instant offline loads.
 // - Precaching uses cache:'reload' so a new version never stores a stale copy from the browser's HTTP cache.
-const VERSION = '2026-10-03.8';
+const VERSION = '2026-10-03.9';
 const CACHE = 'mmo-' + VERSION;
 const CORE = ['./', './index.html', './css/app.css', './manifest.webmanifest', './js/app.js', './js/risk.js', './js/weather.js',
   './js/i18n.js', './js/store.js', './js/sitenet.js', './js/places-ug.js', './js/care.js', './icons/mark.svg', './icons/icon-192.png'];

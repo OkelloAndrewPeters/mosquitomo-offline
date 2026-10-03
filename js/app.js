@@ -319,6 +319,22 @@ async function viewReports() {
 }
 
 // ---------- ABOUT ----------
+// Model card from sitenet_meta.json. Every field is optional, so a changed metadata file can never blank the page.
+function modelCard(m) {
+  if (!m) return '<p class="muted">Model not added yet.</p>';
+  const pct = (x) => (typeof x === 'number' ? (x * 100).toFixed(1) + '%' : '–');
+  const ship = (m.onnx && (m.onnx[m.shipped] || m.onnx.int8)) || {};
+  const test = m.test || {};
+  const li = [];
+  if (m.model) li.push(esc(m.model));
+  if (Array.isArray(m.classes)) li.push('Classes: ' + m.classes.map(esc).join(', '));
+  li.push(`Shipped: ${esc(String(m.shipped || 'int8').toUpperCase())}${ship.size_mb ? ', ' + ship.size_mb + ' MB' : ''}${ship.method ? ' (' + esc(ship.method) + ')' : ''}`);
+  li.push(`Test accuracy ${pct(test.accuracy)}, macro-F1 ${pct(test.macro_f1)}, site vs no-site ${pct(test.site_present_vs_absent_accuracy)}`);
+  const n = m.data && m.data.kept_after_teacher_cleaning;
+  if (m.trained_on || n) li.push(`Trained ${esc(m.trained_on || '')}${n ? ' on ' + n + ' teacher-cleaned images' : ''}`);
+  return `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>${m.caveats ? `<p class="muted">${esc(m.caveats)}</p>` : ''}`;
+}
+
 async function viewAbout() {
   let m = null;
   try { m = await (await fetch('models/sitenet_meta.json')).json(); } catch { /* model not added yet */ }
@@ -328,13 +344,7 @@ async function viewAbout() {
       <h2>${t('about_title')}</h2>
       <p>Small AI for places with weak connectivity: a malaria breeding-risk reading and an on-phone photo check for mosquito breeding sites. It works offline after the first visit.</p>
       <h3>On-device model (SiteNet)</h3>
-      ${m ? `<ul>
-        <li>${esc(m.model)}</li>
-        <li>Classes: ${m.classes.map(esc).join(', ')}</li>
-        <li>Shipped: ${esc(m.shipped.toUpperCase())}, ${m.onnx[m.shipped].size_mb} MB</li>
-        <li>Test accuracy ${(m.test.accuracy * 100).toFixed(1)}%, macro-F1 ${(m.test.macro_f1 * 100).toFixed(1)}%, site vs no-site ${(m.test.site_present_vs_absent_accuracy * 100).toFixed(1)}%</li>
-        <li>Trained ${esc(m.trained_on)} on ${m.data.kept_after_teacher_cleaning} teacher-cleaned images</li>
-      </ul><p class="muted">${esc(m.caveats)}</p>` : '<p class="muted">Model not added yet.</p>'}
+      ${modelCard(m)}
       <h3>Risk engine</h3>
       <p>Computed on the phone from 92 days of rainfall, temperature and humidity plus a 16-day forecast (Open-Meteo), and local terrain. Weights rain from 3 to 5 weeks ago most, because that is when rain turns into malaria risk. The data is saved, so readings keep working offline for up to 16 days.</p>
       <h3>Honest limits</h3>
