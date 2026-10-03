@@ -1,0 +1,6 @@
+{ "name": "MosquitoMo Offline", "short_name": "MosquitoMo", "start_url": "./index.html#risk", "scope": "./",
+  "display": "standalone", "background_color": "#EEF1EC", "theme_color": "#1B2340",
+  "description": "Small AI for malaria prevention. Works offline.",
+  "icons": [ { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+             { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+             { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" } ] }

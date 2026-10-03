@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MosquitoMo Offline</title>
+  <meta name="description" content="Small AI for malaria prevention: breeding-risk readings and an on-phone photo check for mosquito breeding sites. Works offline.">
+  <meta name="theme-color" content="#1B2340">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#risk"><img src="icons/mark.svg" width="28" height="28" alt=""><span>MosquitoMo <small>Offline</small></span></a>
+    <div class="top-r">
+      <button id="install" class="install" hidden data-t="install">Install app</button>
+      <label class="sr" for="lang">Language</label><select id="lang"></select>
+    </div>
+  </header>
+  <main id="view"></main>
+  <nav class="tabs">
+    <a href="#risk" data-tab="risk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span data-t="tab_risk">Risk</span></a>
+    <a href="#check" data-tab="check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3zm3 14a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg><span data-t="tab_check">Check water</span></a>
+    <a href="#reports" data-tab="reports"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-7-4-7 4z"/></svg><span data-t="tab_reports">Reports</span></a>
+    <a href="#about" data-tab="about"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg><span data-t="tab_about">About</span></a>
+  </nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
