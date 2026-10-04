@@ -421,7 +421,7 @@ plt.tight_layout(); plt.savefig(f'{OUT}/samples.png', dpi=110); plt.show()
 """)
 
 code(r"""
-# Download the results (model + metadata + figures). Upload this zip to Claude.
+# Download the results (model + metadata + figures).
 import zipfile
 z = f'/content/sitenet_results.zip'
 with zipfile.ZipFile(z, 'w') as f:
